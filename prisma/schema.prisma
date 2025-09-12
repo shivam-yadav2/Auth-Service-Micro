@@ -64,3 +64,4 @@ model Session {
   @@index([userId, deviceId]) // Enforce device limits
   @@map("sessions")
 }
+
