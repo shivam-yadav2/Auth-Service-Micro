@@ -20,10 +20,33 @@ model User {
 
   devices  Device[]
   sessions Session[]
-
+// Relations
+  otps          Otp[]
   @@index([email]) // Fast lookups
   @@index([phone])
   @@map("users") // Table name in MySQL
+}
+
+model Otp {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  userId    String    @db.VarChar(36)
+  code      String    @db.VarChar(6)  // e.g., 6-digit OTP
+  type      OtpType   // Enum: EMAIL, PHONE
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  isUsed    Boolean   @default(false)
+
+  // Relation
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])  // For pruning expired OTPs
+  @@index([code])               // Quick validation
+  @@map("otps")
+}
+
+enum OtpType {
+  EMAIL
+  PHONE
 }
 
 model Device {

@@ -1,44 +1,115 @@
-import prisma from "@/lib/prisma";
-import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
-// import { sendOtpEmail } from "@/lib/mail";
+import { verifyPassword } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import jwt from "jsonwebtoken";
+import { generateOtp, generateDeviceId, getClientIp } from "@/lib/utils";
+import { sendEmail } from "@/lib/mail";
 
-export async function GET(req) {
-  // Create a transporter for SMTP
-  
-const transporter = nodemailer.createTransport({
-  service: 'gmail',  // Or specify manually: host: 'smtp.gmail.com', port: 587, secure: false
-  auth: {
-    user: "shivamoffice23@gmail.com",  // Your Gmail address
-    pass: "wyiw pqjh libc ghcy",  // Your App Password
-  },
-  // Optional: TLS settings for better security
-  tls: {
-    rejectUnauthorized: false  // For self-signed certs; set to true in production
+async function sendOtpEmail({ to, otpCode }) {
+  const subject = "Your OTP Code";
+  const text = `Your OTP code is: ${otpCode}. It will expire in 10 minutes.`;
+  const html = `<p>Your OTP code is: <strong>${otpCode}</strong>. It will expire in 10 minutes.</p>`;
+
+  try {
+    await sendEmail({ to, subject, text, html });
+    console.log(`OTP email sent to ${to}`);
+  } catch (error) {
+    console.error(`Failed to send OTP email to ${to}:`, error);
+    throw new Error("Failed to send OTP email");
   }
-});
+}
 
+async function POST(req) {
+  try {
+    const { email, phone, password } = await req.json();
 
-  await transporter.verify();
-  console.log("Server is ready to take our messages");
-  (async () => {
-    try {
-      const info = await transporter.sendMail({
-        from: 'shivamoffice23@gmail.com', // sender address
-        to: "shivamyadav6546@gmail.com", // list of receivers
-        subject: "Hello", // Subject line
-        text: "Hello world?", // plain text body
-        html: "<b>Hello world?</b>", // html body
+    if (!email && !phone) {
+      return NextResponse.json({ error: "Email or phone required" }, { status: 400 });
+    }
+
+    // Find user
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Verify password
+    if (password && user.passwordHash && !(await verifyPassword(password, user.passwordHash))) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    // If not verified, send OTP
+    if (!user.isVerified) {
+      const otpCode = generateOtp();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await prisma.otp.create({
+        data: {
+          userId: user.id,
+          code: otpCode,
+          type: email ? "EMAIL" : "PHONE",
+          expiresAt,
+        },
       });
 
-      console.log("Message sent: %s", info.messageId);
-      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-    } catch (err) {
-      console.error("Error while sending mail", err);
-    }
-  })();
-  
+      if (email) {
+        await sendOtpEmail({ to: email, otpCode });
+      } else {
+        console.log(`SMS OTP ${otpCode} for ${phone}`);
+      }
 
-  return NextResponse.json({ message: "Hello from GET /api/auth/login" });
+      return NextResponse.json({ message: "OTP sent for verification" });
+    }
+
+    // Create or update device
+    const deviceId = generateDeviceId(req);
+    let device = await prisma.device.findUnique({ where: { deviceId } });
+    if (!device) {
+      device = await prisma.device.create({
+        data: {
+          userId: user.id,
+          deviceId,
+          deviceType: req.headers["user-agent"]?.includes("Mobile") ? "mobile" : "web",
+          deviceName: "Unknown Device",
+          location: getClientIp(req),
+          lastActiveAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { lastActiveAt: new Date() },
+      });
+    }
+
+    // Create session
+    const token = jwt.sign({ userId: user.id, deviceId }, process.env.JWT_SECRET || "secret", {
+      expiresIn: "7d",
+    });
+    const session = await prisma.session.create({
+      data: {
+        userId: user.id,
+        deviceId: device.id,
+        token,
+        ipAddress: getClientIp(req),
+        userAgent: req.headers["user-agent"],
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    return NextResponse.json({ message: "Login successful", token });
+  } catch (error) {
+    console.error("Login error:", error);
+    return NextResponse.json({ error: "Failed to login" }, { status: 500 });
+  }
 }
+
+export { POST };
