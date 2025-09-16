@@ -20,8 +20,10 @@ async function sendOtpEmail({ to, otpCode }) {
 }
 
 async function POST(req) {
+
+  // console.log("Login request received" , req);
   try {
-    const { email, phone, password } = await req.json();
+    const { email, phone, password  } = await req.json();
 
     if (!email && !phone) {
       return NextResponse.json({ error: "Email or phone required" }, { status: 400 });
@@ -63,24 +65,27 @@ async function POST(req) {
       return NextResponse.json({ message: "OTP sent for verification" });
     }
 
+    // Use client-provided deviceId and IP if available
+    const deviceId = req.headers.get("x-device-id") || generateDeviceId(req);
+    const ipAddress = req.headers.get("x-client-ip") || getClientIp(req);
+
     // Create or update device
-    const deviceId = generateDeviceId(req);
     let device = await prisma.device.findUnique({ where: { deviceId } });
     if (!device) {
       device = await prisma.device.create({
         data: {
           userId: user.id,
           deviceId,
-          deviceType: req.headers["user-agent"]?.includes("Mobile") ? "mobile" : "web",
+          deviceType: req.headers.get("user-agent")?.includes("Mobile") ? "mobile" : "web",
           deviceName: "Unknown Device",
-          location: getClientIp(req),
+          location: ipAddress,
           lastActiveAt: new Date(),
         },
       });
     } else {
       await prisma.device.update({
         where: { id: device.id },
-        data: { lastActiveAt: new Date() },
+        data: { lastActiveAt: new Date(), location: ipAddress },
       });
     }
 
