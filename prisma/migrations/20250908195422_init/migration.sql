@@ -38,7 +38,7 @@ CREATE TABLE `sessions` (
     `id` VARCHAR(36) NOT NULL,
     `userId` VARCHAR(36) NOT NULL,
     `deviceId` VARCHAR(36) NOT NULL,
-    `token` VARCHAR(1000) NOT NULL,
+    `token` VARCHAR(191) NOT NULL,
     `ipAddress` VARCHAR(45) NULL,
     `userAgent` VARCHAR(255) NULL,
     `expiresAt` DATETIME(3) NULL,

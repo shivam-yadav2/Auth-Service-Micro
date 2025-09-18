@@ -1,46 +1,45 @@
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL") // e.g., mysql://user:pass@localhost:3306/dbname
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id           String    @id @default(uuid()) @db.VarChar(36) // UUID for scalability
-  email        String?   @unique @db.VarChar(255)
-  phone        String?   @unique @db.VarChar(20)
-  passwordHash String?   @db.VarChar(255) // Hashed with bcrypt
-  name         String?   @db.VarChar(100)
-  isVerified   Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lastLoginAt  DateTime?
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
 
-  devices  Device[]
-  sessions Session[]
-// Relations
-  otps          Otp[]
-  @@index([email]) // Fast lookups
+model User {
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  email          String?   @unique @db.VarChar(191) // Safe for indexing
+  phone          String?   @unique @db.VarChar(20)
+  passwordHash   String?   @db.VarChar(191)        // Safe length
+  name           String?   @db.VarChar(100)
+  profilePicture String?   @db.VarChar(191)
+  isVerified     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastLoginAt    DateTime?
+  otps           Otp[]
+  devices        Device[]
+  sessions       Session[]
+
+  @@index([email])
   @@index([phone])
-  @@map("users") // Table name in MySQL
+  @@map("users")
 }
 
 model Otp {
   id        String    @id @default(uuid()) @db.VarChar(36)
   userId    String    @db.VarChar(36)
-  code      String    @db.VarChar(6)  // e.g., 6-digit OTP
-  type      OtpType   // Enum: EMAIL, PHONE
+  code      String    @db.VarChar(6)
+  type      OtpType
   expiresAt DateTime
   createdAt DateTime  @default(now())
   isUsed    Boolean   @default(false)
 
-  // Relation
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, expiresAt])  // For pruning expired OTPs
-  @@index([code])               // Quick validation
+  @@index([userId, expiresAt])
+  @@index([code])
   @@map("otps")
 }
 
@@ -52,18 +51,17 @@ enum OtpType {
 model Device {
   id           String   @id @default(uuid()) @db.VarChar(36)
   userId       String   @db.VarChar(36)
-  deviceId     String   @unique @db.VarChar(255) // Unique device fingerprint (e.g., from user-agent + IP hash)
-  deviceType   String?  @db.VarChar(50) // e.g., 'mobile', 'web', 'tv'
-  deviceName   String?  @db.VarChar(100) // User-friendly name, e.g., 'iPhone 14'
+  deviceId     String   @unique @db.VarChar(191)
+  deviceType   String?  @db.VarChar(50)
+  deviceName   String?  @db.VarChar(100)
   lastActiveAt DateTime @default(now())
-  location     String?  @db.VarChar(100) // Approximate, e.g., 'New York' (from IP)
+  location     String?  @db.VarChar(100)
 
-  // Relation
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions Session[]
 
-  @@index([userId]) // List devices per user quickly
-  @@index([userId, lastActiveAt]) // Sort by recent activity
+  @@index([userId])
+  @@index([userId, lastActiveAt])
   @@map("devices")
 }
 
@@ -71,20 +69,20 @@ model Session {
   id        String    @id @default(uuid()) @db.VarChar(36)
   userId    String    @db.VarChar(36)
   deviceId  String    @db.VarChar(36)
-  token     String    @unique @db.VarChar(1000) // JWT or refresh token
+
+  /// Store SHA-256 hash of token instead of full token
+  tokenHash String    @unique @db.Char(64)  
+
   ipAddress String?   @db.VarChar(45)
-  userAgent String?   @db.VarChar(255)
+  userAgent String?   @db.VarChar(191)
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   revoked   Boolean   @default(false)
 
-  // Relations
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
-  @@index([userId, expiresAt]) // Prune expired sessions
-  @@index([token]) // Fast token validation
-  @@index([userId, deviceId]) // Enforce device limits
+  @@index([userId, expiresAt])
+  @@index([userId, deviceId])
   @@map("sessions")
 }
-
