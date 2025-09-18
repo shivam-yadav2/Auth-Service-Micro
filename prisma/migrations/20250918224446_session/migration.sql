@@ -1,10 +1,11 @@
 -- CreateTable
 CREATE TABLE `users` (
     `id` VARCHAR(36) NOT NULL,
-    `email` VARCHAR(255) NULL,
+    `email` VARCHAR(191) NULL,
     `phone` VARCHAR(20) NULL,
-    `passwordHash` VARCHAR(255) NULL,
+    `passwordHash` VARCHAR(191) NULL,
     `name` VARCHAR(100) NULL,
+    `profilePicture` VARCHAR(191) NULL,
     `isVerified` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
@@ -18,10 +19,25 @@ CREATE TABLE `users` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `otps` (
+    `id` VARCHAR(36) NOT NULL,
+    `userId` VARCHAR(36) NOT NULL,
+    `code` VARCHAR(6) NOT NULL,
+    `type` ENUM('EMAIL', 'PHONE') NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `isUsed` BOOLEAN NOT NULL DEFAULT false,
+
+    INDEX `otps_userId_expiresAt_idx`(`userId`, `expiresAt`),
+    INDEX `otps_code_idx`(`code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `devices` (
     `id` VARCHAR(36) NOT NULL,
     `userId` VARCHAR(36) NOT NULL,
-    `deviceId` VARCHAR(255) NOT NULL,
+    `deviceId` VARCHAR(191) NOT NULL,
     `deviceType` VARCHAR(50) NULL,
     `deviceName` VARCHAR(100) NULL,
     `lastActiveAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -38,19 +54,21 @@ CREATE TABLE `sessions` (
     `id` VARCHAR(36) NOT NULL,
     `userId` VARCHAR(36) NOT NULL,
     `deviceId` VARCHAR(36) NOT NULL,
-    `token` VARCHAR(191) NOT NULL,
+    `tokenHash` VARCHAR(300) NOT NULL,
     `ipAddress` VARCHAR(45) NULL,
-    `userAgent` VARCHAR(255) NULL,
+    `userAgent` VARCHAR(191) NULL,
     `expiresAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `revoked` BOOLEAN NOT NULL DEFAULT false,
 
-    UNIQUE INDEX `sessions_token_key`(`token`),
+    UNIQUE INDEX `sessions_tokenHash_key`(`tokenHash`),
     INDEX `sessions_userId_expiresAt_idx`(`userId`, `expiresAt`),
-    INDEX `sessions_token_idx`(`token`),
     INDEX `sessions_userId_deviceId_idx`(`userId`, `deviceId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `otps` ADD CONSTRAINT `otps_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `devices` ADD CONSTRAINT `devices_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

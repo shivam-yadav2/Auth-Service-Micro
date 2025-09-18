@@ -71,7 +71,7 @@ model Session {
   deviceId  String    @db.VarChar(36)
 
   /// Store SHA-256 hash of token instead of full token
-  tokenHash String    @unique @db.Char(64)  
+  tokenHash String    @unique @db.VarChar(300)  
 
   ipAddress String?   @db.VarChar(45)
   userAgent String?   @db.VarChar(191)

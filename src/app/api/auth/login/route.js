@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { generateOtp, generateDeviceId, getClientIp } from "@/lib/utils";
 import { sendEmail } from "@/lib/mail";
+import crypto from "crypto";
 
 async function sendOtpEmail({ to, otpCode }) {
   const subject = "Your OTP Code";
@@ -93,11 +94,16 @@ async function POST(req) {
     const token = jwt.sign({ userId: user.id, deviceId }, process.env.JWT_SECRET || "secret", {
       expiresIn: "7d",
     });
+    // Hash the token
+const tokenHash = crypto
+  .createHash("sha256")
+  .update(token)
+  .digest("hex");
     const session = await prisma.session.create({
       data: {
         userId: user.id,
         deviceId: device.id,
-        token,
+        tokenHash,
         ipAddress: getClientIp(req),
         userAgent: req.headers["user-agent"],
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
