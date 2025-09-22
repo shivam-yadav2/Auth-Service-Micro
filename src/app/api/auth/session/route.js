@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 
 async function GET(req) {
+  console.log("Sessions request received");
   try {
     const token = req.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
