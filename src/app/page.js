@@ -1,20 +1,20 @@
-'use client';
+
 import Image from "next/image";
-import { useEffect } from "react";
+// import { useEffect } from "react";
 
 export default function Home() {
-  if (typeof window !== 'undefined') {
-  console.log(window.navigator.userAgent);
-  // Access other window properties, e.g., window.screen.width
-} else {
-  console.log('Running on server, window is not available');
-}
+//   if (typeof window !== 'undefined') {
+//   console.log(window.navigator.userAgent);
+//   // Access other window properties, e.g., window.screen.width
+// } else {
+//   console.log('Running on server, window is not available');
+// }
 
-useEffect(() => {
-    console.log(window.navigator.userAgent);
-    console.log(window.screen.width, window.screen.height);
-    // Add your window-related logic here
-  }, []); // Empty dependency array ensures it runs once on mount
+// useEffect(() => {
+//     console.log(window.navigator.userAgent);
+//     console.log(window.screen.width, window.screen.height);
+//     // Add your window-related logic here
+//   }, []); // Empty dependency array ensures it runs once on mount
 // Example output: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
@@ -29,7 +29,7 @@ useEffect(() => {
         />
         <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
           <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
+            Get started by editing here{" "}
             <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
               src/app/page.js
             </code>

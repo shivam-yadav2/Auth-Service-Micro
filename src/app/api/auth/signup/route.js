@@ -19,6 +19,7 @@ async function sendOtpEmail({ to, otpCode }) {
 }
 
 async function POST(req) {
+  console.log(req)
   try {
     const { email, phone, password, name } = await req.json();
 
